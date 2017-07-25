@@ -73,3 +73,5 @@ pip-selfcheck.json
 # IntelliJ
 .idea
 
+venv/
+venv

@@ -19,7 +19,7 @@ with open(os.path.join(ROOT, "raven_python_lambda", "__about__.py")) as f:
 
 install_requires = [
     'raven==6.1.0',
-    'psutil==5.2.2'
+    # 'psutil==5.2.2'
 ]
 
 tests_require = [

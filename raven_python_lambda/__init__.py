@@ -7,9 +7,12 @@ Raven wrapper for AWS Lambda handlers.
 """
 import os
 import math
-import psutil
+from base64 import b64decode
+
+# import psutil
 import logging
 import functools
+import boto3
 from threading import Timer
 
 from raven.base import Client
@@ -18,14 +21,14 @@ from raven.utils.conf import convert_options
 from raven.transport.http import HTTPTransport
 from raven.handlers.logging import SentryHandler
 
-logger = logging.basicConfig()
+logging.basicConfig()
 
 
 def configure_raven_client(config):
     # check for local environment
     is_local_env = os.environ.get('IS_OFFLINE') or os.environ.get('IS_LOCAL') or os.environ.get('LAMBDA_TASK_ROOT')
     if config['filter_local'] and is_local_env:
-        logger.warning('Sentry is disabled in local environment')
+        logging.warning('Sentry is disabled in local environment')
 
     defaults = {
         'include_paths': (
@@ -46,8 +49,16 @@ def configure_raven_client(config):
             'region': os.environ.get('SERVERLESS_REGION') or os.environ.get('AWS_REGION')
         },
         'transport': HTTPTransport,
-        'dsn': os.environ.get('SENTRY_DSN')
     }
+
+    # KMS?
+    if os.environ.get("ENCRYPTED_SENTRY_DSN") and os.environ.get("KMS_REGION"):
+        defaults["dsn"] = boto3.client('kms', region_name=os.environ["KMS_REGION"]) \
+            .decrypt(CiphertextBlob=b64decode(os.environ["ENCRYPTED_SENTRY_DSN"]))['Plaintext'] \
+            .decode("utf-8")
+
+    else:
+        defaults["dsn"] = os.environ.get("SENTRY_DSN")
 
     return Client(
         **convert_options(
@@ -82,6 +93,7 @@ class RavenLambdaWrapper(object):
         raise Exception('I will be sent to sentry!')
 
     """
+
     def __init__(self, config=None):
         self.config = config
 
@@ -124,6 +136,7 @@ class RavenLambdaWrapper(object):
 
     def __call__(self, fn):
         """Wraps our function with the necessary raven context."""
+
         @functools.wraps(fn)
         def decorated(event, context):
             self.context = context
@@ -137,15 +150,15 @@ class RavenLambdaWrapper(object):
             }
 
             # Gather identity information from context if possible
-            identity = context.get('identity')
+            identity = context.identity
             if identity:
                 raven_context['user'] = {
-                    'id': identity.get('cognitoIdentityId', None),
-                    'username': identity.get('user', None),
-                    'ip_address': identity.get('sourceIp', None),
-                    'cognito_identity_pool_id': identity.get('cognitoIdentityPoolId', None),
-                    'cognito_authentication_type': identity.get('cognitoAuthenticationType', None),
-                    'user_agent': identity.get('userAgent')
+                    # 'id': identity..('cognitoIdentityId', None),
+                    # 'username': identity.get('user', None),
+                    # 'ip_address': identity.get('sourceIp', None),
+                    # 'cognito_identity_pool_id': identity.get('cognitoIdentityPoolId', None),
+                    # 'cognito_authentication_type': identity.get('cognitoAuthenticationType', None),
+                    # 'user_agent': identity.get('userAgent')
                 }
 
             # Add additional tags for AWS_PROXY endpoints
@@ -214,24 +227,24 @@ def timeout_warning(config, context):
     )
 
 
-def memory_warning(config, context):
-    """Determines when memory usage is nearing it's max."""
-    used = psutil.Process(os.getpid()).memory_info().rss / 1048576
-    limit = context.memory_limit_in_mb
-    p = used / limit
-
-    if p >= 0.75:
-        config['raven_client'].capture_message(
-            'Memory Usage Warning',
-            level='warning',
-            extra={
-                'MemoryLimitInMB': context.memory_limit_in_mb,
-                'MemoryUsedInMB': math.floor(used)
-            }
-        )
-    else:
-        # nothing to do check back later
-        Timer(500, memory_warning(config, context)).start()
+# def memory_warning(config, context):
+#     """Determines when memory usage is nearing it's max."""
+#     used = psutil.Process(os.getpid()).memory_info().rss / 1048576
+#     limit = context.memory_limit_in_mb
+#     p = used / limit
+#
+#     if p >= 0.75:
+#         config['raven_client'].capture_message(
+#             'Memory Usage Warning',
+#             level='warning',
+#             extra={
+#                 'MemoryLimitInMB': context.memory_limit_in_mb,
+#                 'MemoryUsedInMB': math.floor(used)
+#             }
+#         )
+#     else:
+#         # nothing to do check back later
+#         Timer(500, memory_warning(config, context)).start()
 
 
 def install_timers(config, context):
@@ -245,4 +258,5 @@ def install_timers(config, context):
 
     if config.get('capture_memory_warnings'):
         # Schedule the memory watch dog interval. Warning will re-schedule itself if necessary.
-        Timer(500, memory_warning(config, context)).start()
+        # Timer(500, memory_warning(config, context)).start()
+        pass

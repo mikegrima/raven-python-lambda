@@ -28,11 +28,11 @@ more details of what Raven and Sentry actually is, refer to the official Sentry 
 
 ## Installation
 
-* Install the `raven-python-lambda` module from pip:
+* Install the `raven_python_lambda` module from pip:
   ```bash
-  pip install raven-python-lambda
+  pip install raven_python_lambda
   ```
-* or install the `raven-python-lambda` locally:
+* or install the `raven_python_lambda` locally:
   ```bash
   pip install -e .
   ```
@@ -136,7 +136,7 @@ def handler(event, context):
 ```python
 
 from raven import Client # Offical `raven` module
-from raven-python-lambda import RavenLambdaWrapper
+from raven_python_lambda import RavenLambdaWrapper
 
 @RavenLambdaWrapper()
 def handler(event, context):
@@ -168,7 +168,7 @@ configuration options to the `RavenLambdaWrapper` directly:
 
 ```python
 from raven import Client # Offical `raven` module
-from raven-python-lambda import RavenLambdaWrapper
+from raven_python_lambda import RavenLambdaWrapper
 
 raven_config = {
   'capture_errors': False,
@@ -241,7 +241,7 @@ environment variables or the `RavenLambdaWrapper` during initialization:
 
 ```python
 from raven import Client # Offical `raven` module
-from raven-python-lambda import RavenLambdaWrapper
+from raven_python_lambda import RavenLambdaWrapper
 
 raven_config = {
   'capture_errors': False,  # Don't log error responses from the Lambda ...
